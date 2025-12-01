@@ -30,17 +30,23 @@ app.get('/', (req, res) => {
 });
 
 // ALL ROUTERS
+const authRouter = require('./api/controllers/auth_controller');
 const memoryRouter = require('./api/controllers/memory_controller');
 const storytellerRouter = require('./api/controllers/storyteller_controller');
 const photoImageRouter = require('./api/controllers/photoimage_controller');
 const ttsRouter = require('./api/controllers/tts_controller');
 const storytellerMemoryRouter = require('./api/controllers/storyteller_memory_controller');
+const collaborationRouter = require('./api/controllers/collaboration_controller');
+const reminderRouter = require('./api/controllers/reminder_controller');
 
+app.use('/api/auth', authRouter);
 app.use('/api/memory', memoryRouter);
 app.use('/api/storyteller', storytellerRouter);
 app.use('/api/images', photoImageRouter);
 app.use('/api/tts', ttsRouter);
 app.use('/api/storyteller-memory', storytellerMemoryRouter);
+app.use('/api/collaboration', collaborationRouter);
+app.use('/api/reminder', reminderRouter);
 
 const PORT = 3000;
 

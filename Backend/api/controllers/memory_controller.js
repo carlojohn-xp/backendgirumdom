@@ -1,7 +1,9 @@
 const { getMemory, getMemoryByUserID, getMemoryByID, createMemory, updateMemory, deleteMemory } = require('../connections/memory');
 const { getImagesByMemoryID } = require('../connections/photoImage');
 const express = require('express');
-const router = express.Router(); 
+const router = express.Router();
+const authMiddleware = require('../middleware/auth');
+const { canCreateMemory, canEditMemory, canDeleteMemory } = require('../middleware/permissions');
 
 router.use(express.json());
 
@@ -21,10 +23,10 @@ async function enrichMemoryWithImages(memory) {
     return memory;
 }
 
-//GET /memory/user/:user_id - GET ALL USER'S EXISTING MEMORY
-router.get('/user/:user_id', async(req, res) => {
+//GET /memory/user - GET ALL AUTHENTICATED USER'S EXISTING MEMORY
+router.get('/user', authMiddleware, async(req, res) => {
     try {
-        const user_id = req.params.user_id;
+        const user_id = req.user.user_type === 'assistant' ? req.user.main_user_id : req.user.id;
         const memories = await getMemoryByUserID(user_id);
 
         const memoryWithImages = await enrichMemoryWithImages(memories);
@@ -36,14 +38,14 @@ router.get('/user/:user_id', async(req, res) => {
 });
 
 // GET /memory - GET ALL MEMORY
-router.get('/', async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
     const memories = await getMemory();
     const memoryWithImages = await enrichMemoryWithImages(memories);
     res.send(memoryWithImages);
 });
 
 //GET /memory/:id - GET A SINGLE MEMORY
-router.get('/:id', async (req, res) => {
+router.get('/:id', authMiddleware, async (req, res) => {
     try {
         const memory = await getMemoryByID(req.params.id);
         if (!memory) return res.status(404).json({ error: 'Memory not found' });
@@ -56,9 +58,11 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /memory - CREATE or ADD A NEW MEMORY
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, canCreateMemory, async (req, res) => {
     try {
-        const { title, content, user_id, creator_id, date_of_event } = req.body; 
+        const { title, content, date_of_event } = req.body;
+        const user_id = req.user.user_type === 'assistant' ? req.user.main_user_id : req.user.id;
+        const creator_id = req.user.id;
         const memory = await createMemory(title, content, user_id, creator_id, date_of_event);
         res.status(200).send(memory);
     } catch (error) {
@@ -68,9 +72,9 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /memory/:id - UPDATE AN EXISTING MEMORY
-router.put('/:id', async (req, res) => {
+router.put('/:id', authMiddleware, canEditMemory, async (req, res) => {
     try {
-        const { title, content, date_of_event } = req.body; 
+        const { title, content, date_of_event } = req.body;
         const memory = await updateMemory(req.params.id, title, content, date_of_event);
         res.status(200).send(memory);
     } catch (error) {
@@ -80,7 +84,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // DELETE /memory/:id - DELETE or REMOVE AN EXISTING MEMORY
-router.delete('/:id', async(req, res) => {
+router.delete('/:id', authMiddleware, canDeleteMemory, async(req, res) => {
     try {
         await deleteMemory(req.params.id);
         res.status(200).json({ message: 'Memory deleted successfully' });
